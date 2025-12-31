@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "postinstall": "echo 'Optional dependencies may show errors, this is normal and can be ignored.'"
+  },
+  "optionalDependencies": {
+    "canvas": "*"
   },
   "dependencies": {
     "react": "^18.2.0",

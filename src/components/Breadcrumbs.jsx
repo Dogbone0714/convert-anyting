@@ -4,6 +4,7 @@ function Breadcrumbs({ currentPage = 'convert' }) {
   const pageName = 
     currentPage === 'compress' ? '壓縮 PDF' :
     currentPage === 'merge' ? '合併PDF' :
+    currentPage === 'sign' ? '簽署 PDF' :
     'PDF轉換器'
   
   return (

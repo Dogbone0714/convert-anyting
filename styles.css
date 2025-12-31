@@ -253,8 +253,8 @@ body {
 
 /* Upload Area */
 .upload-area {
-    background: linear-gradient(135deg, #FF6B6B 0%, #EE5A6F 100%);
-    border: 3px dashed rgba(255, 255, 255, 0.8);
+    background: #fff;
+    border: 2px dashed #ddd;
     border-radius: 12px;
     padding: 60px 40px;
     text-align: center;
@@ -270,14 +270,16 @@ body {
 }
 
 .upload-area:hover {
-    border-color: rgba(255, 255, 255, 1);
+    border-color: #4D96FF;
+    background-color: #f8f9fa;
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(255, 107, 107, 0.3);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .upload-area.dragover {
-    background: linear-gradient(135deg, #FF5252 0%, #E0485C 100%);
-    border-color: white;
+    background-color: #f0f7ff;
+    border-color: #4D96FF;
+    border-width: 3px;
     transform: scale(1.02);
 }
 
@@ -1157,6 +1159,114 @@ body {
     }
 }
 
+/* Sign Page Styles */
+.sign-page {
+    padding: 40px 0 80px;
+}
+
+.sign-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 30px;
+    min-height: 600px;
+}
+
+.sign-toolbar {
+    width: 250px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    height: fit-content;
+    position: sticky;
+    top: 100px;
+}
+
+.sign-preview-area {
+    flex: 1;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.signature-panel {
+    margin-top: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px solid #4D96FF;
+}
+
+.signature-panel h3 {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 18px;
+}
+
+.signature-canvas-container {
+    text-align: center;
+}
+
+.signature-input-container {
+    text-align: center;
+}
+
+.signature-upload-container {
+    text-align: center;
+    padding: 20px;
+}
+
+.sign-content {
+    margin-top: 60px;
+}
+
+.sign-description {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 60px;
+}
+
+.sign-description p {
+    font-size: 18px;
+    line-height: 1.8;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.sign-benefits {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 30px;
+}
+
+.sign-section {
+    margin-bottom: 60px;
+    padding: 40px 0;
+}
+
+@media (max-width: 968px) {
+    .sign-container {
+        flex-direction: column;
+    }
+    
+    .sign-toolbar {
+        width: 100%;
+        position: relative;
+        top: 0;
+    }
+    
+    .tool-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .tool-btn {
+        flex: 1;
+        min-width: 120px;
+    }
+}
+
 @media (max-width: 768px) {
     .file-list-header {
         flex-direction: column;
@@ -1181,11 +1291,13 @@ body {
 
 /* File Upload States */
 .upload-area.processing {
-    background: linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%);
+    background-color: #f0f7ff;
+    border-color: #4ECDC4;
 }
 
 .upload-area.success {
-    background: linear-gradient(135deg, #6BCB77 0%, #4CAF50 100%);
+    background-color: #f0fff4;
+    border-color: #6BCB77;
 }
 
 .file-list {

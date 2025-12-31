@@ -14,7 +14,7 @@ import Footer from './components/Footer'
 export const PageContext = React.createContext()
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('convert') // 'convert', 'compress', 或 'merge'
+  const [currentPage, setCurrentPage] = useState('convert') // 'convert', 'compress', 'merge'
 
   // 監聽導航點擊
   useEffect(() => {

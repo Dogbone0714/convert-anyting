@@ -13,12 +13,6 @@ function ToolsDropdown() {
     ],
     convert: [
     ],
-    ai: [
-      { name: '與PDF檔案進行對談', icon: '', color: '#4D96FF' },
-      { name: 'AI PDF摘要節錄器', icon: '', color: '#4D96FF' },
-      { name: '翻譯 PDF', icon: '', color: '#4D96FF' },
-      { name: 'AI問題產生器', icon: '', color: '#4D96FF' }
-    ],
     organize: [
       { name: '合併PDF', icon: '', color: '#9B59B6' },
       { name: '分割PDF', icon: '', color: '#9B59B6' },
@@ -50,10 +44,6 @@ function ToolsDropdown() {
       { name: 'JPG轉PDF', icon: 'J', color: '#FFD93D' },
       { name: 'PDF OCR', icon: 'O', color: '#FF6B6B' }
     ],
-    sign: [
-      { name: '簽署 PDF', icon: '', color: '#9B59B6' },
-      { name: '請求簽名 (Sign.com)', icon: '', color: '#FFD93D' }
-    ],
     more: [
       { name: '解密PDF', icon: '', color: '#FF6B6B' },
       { name: '加密PDF', icon: '', color: '#FF6B6B' },
@@ -73,9 +63,11 @@ function ToolsDropdown() {
   }
 
   const handleMouseLeave = () => {
-    timeoutRef.current = setTimeout(() => {
-      setIsOpen(false)
-    }, 300) // 300ms 延遲
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+    setIsOpen(false)
   }
 
   useEffect(() => {
@@ -127,22 +119,6 @@ function ToolsDropdown() {
                   key={index} 
                   href="#" 
                   className={`dropdown-item ${tool.highlight ? 'highlight' : ''}`}
-                  onClick={(e) => handleToolClick(e, tool.name)}
-                >
-                  {tool.icon && <span className="tool-icon" style={{ color: tool.color }}>{tool.icon}</span>}
-                  <span>{tool.name}</span>
-                </a>
-              ))}
-            </div>
-
-            {/* AI PDF */}
-            <div className="dropdown-column">
-              <h4 className="dropdown-category">AI PDF</h4>
-              {tools.ai.map((tool, index) => (
-                <a 
-                  key={index} 
-                  href="#" 
-                  className="dropdown-item"
                   onClick={(e) => handleToolClick(e, tool.name)}
                 >
                   {tool.icon && <span className="tool-icon" style={{ color: tool.color }}>{tool.icon}</span>}
@@ -203,22 +179,6 @@ function ToolsDropdown() {
             <div className="dropdown-column">
               <h4 className="dropdown-category">轉換成PDF</h4>
               {tools.toPDF.map((tool, index) => (
-                <a 
-                  key={index} 
-                  href="#" 
-                  className="dropdown-item"
-                  onClick={(e) => handleToolClick(e, tool.name)}
-                >
-                  {tool.icon && <span className="tool-icon" style={{ color: tool.color }}>{tool.icon}</span>}
-                  <span>{tool.name}</span>
-                </a>
-              ))}
-            </div>
-
-            {/* 簽名 */}
-            <div className="dropdown-column">
-              <h4 className="dropdown-category">簽名</h4>
-              {tools.sign.map((tool, index) => (
                 <a 
                   key={index} 
                   href="#" 

@@ -140,20 +140,30 @@ function CompressPage() {
           {!file && !isProcessing && (
             <>
               <div className="upload-icon">
-                <svg width="100" height="80" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="5" y="25" width="28" height="38" fill="#FF6B6B" stroke="white" strokeWidth="2" rx="2"/>
-                  <text x="12" y="45" fill="white" fontSize="10" fontWeight="bold" fontFamily="Arial">PDF</text>
-                  <line x1="8" y1="50" x2="30" y2="50" stroke="white" strokeWidth="1"/>
-                  <line x1="8" y1="55" x2="30" y2="55" stroke="white" strokeWidth="1"/>
-                  <rect x="30" y="20" width="28" height="38" fill="#4ECDC4" stroke="white" strokeWidth="2" rx="2"/>
-                  <circle cx="40" cy="35" r="3" fill="white"/>
-                  <circle cx="48" cy="35" r="3" fill="white"/>
-                  <circle cx="40" cy="42" r="3" fill="white"/>
-                  <circle cx="48" cy="42" r="3" fill="white"/>
-                  <rect x="55" y="15" width="28" height="38" fill="#95E1D3" stroke="white" strokeWidth="2" rx="2"/>
-                  <line x1="60" y1="25" x2="78" y2="25" stroke="white" strokeWidth="1.5"/>
-                  <line x1="60" y1="30" x2="75" y2="30" stroke="white" strokeWidth="1.5"/>
-                  <line x1="60" y1="35" x2="78" y2="35" stroke="white" strokeWidth="1.5"/>
+                <svg width="120" height="90" viewBox="0 0 120 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* 左邊：表格文件 */}
+                  <rect x="8" y="20" width="32" height="42" fill="none" stroke="white" strokeWidth="2" rx="2"/>
+                  <path d="M 12 28 L 36 28" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 12 34 L 36 34" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 12 40 L 36 40" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 12 46 L 36 46" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 20 24 L 20 58" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 28 24 L 28 58" stroke="white" strokeWidth="1.5"/>
+                  
+                  {/* 中間：PDF 文件 */}
+                  <rect x="40" y="15" width="36" height="48" fill="none" stroke="white" strokeWidth="2.5" rx="2"/>
+                  <rect x="46" y="48" width="24" height="8" fill="rgba(255,255,255,0.3)" stroke="white" strokeWidth="1" rx="1"/>
+                  <text x="52" y="54" fill="white" fontSize="8" fontWeight="bold" fontFamily="Arial">PDF</text>
+                  <line x1="46" y1="28" x2="70" y2="28" stroke="white" strokeWidth="1.5"/>
+                  <line x1="46" y1="34" x2="68" y2="34" stroke="white" strokeWidth="1.5"/>
+                  <line x1="46" y1="40" x2="70" y2="40" stroke="white" strokeWidth="1.5"/>
+                  
+                  {/* 右邊：圖表文件 */}
+                  <rect x="72" y="10" width="32" height="42" fill="none" stroke="white" strokeWidth="2" rx="2"/>
+                  <circle cx="88" cy="28" r="10" fill="rgba(255,255,255,0.3)" stroke="white" strokeWidth="1.5"/>
+                  <path d="M 88 18 A 10 10 0 0 1 88 28 L 88 18" fill="white"/>
+                  <line x1="88" y1="28" x2="88" y2="18" stroke="white" strokeWidth="1.5"/>
+                  <line x1="88" y1="28" x2="96" y2="28" stroke="white" strokeWidth="1.5"/>
                 </svg>
               </div>
               <div className="upload-button-wrapper">
