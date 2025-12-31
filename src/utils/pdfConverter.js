@@ -1,10 +1,15 @@
 import { PDFDocument } from 'pdf-lib'
+import * as pdfjsLib from 'pdfjs-dist'
 import * as XLSX from 'xlsx'
 import mammoth from 'mammoth'
 import PptxGenJS from 'pptxgenjs'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
 import { saveAs } from 'file-saver'
+import { Document, Packer, Paragraph, TextRun } from 'docx'
+
+// 設置 pdf.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
 
 // 獲取文件擴展名
 export function getFileExtension(filename) {
@@ -40,26 +45,106 @@ export function isPowerPoint(filename) {
   return ['ppt', 'pptx'].includes(ext)
 }
 
-// PDF 轉 Word (使用 HTML 作為中介)
+// PDF 轉 Word (使用 docx 庫生成真正的 DOCX 文件，保留格式)
 export async function pdfToWord(pdfFile) {
   try {
-    // 讀取 PDF
     const arrayBuffer = await pdfFile.arrayBuffer()
-    const pdfDoc = await PDFDocument.load(arrayBuffer)
-    const pages = pdfDoc.getPages()
     
-    // 創建 HTML 內容
-    let htmlContent = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>'
+    // 使用 pdf.js 讀取 PDF
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
+    const numPages = pdf.numPages
     
-    // 注意：pdf-lib 無法直接提取文字，這裡是簡化版本
-    // 實際應用中需要使用 pdf.js 或其他 OCR 工具
-    htmlContent += '<p>PDF 轉換為 Word 文件</p>'
-    htmlContent += `<p>頁數: ${pages.length}</p>`
-    htmlContent += '</body></html>'
+    // 提取所有頁面的文字內容，保留格式信息
+    const paragraphs = []
+    let hasContent = false
     
-    // 使用 mammoth 將 HTML 轉為 Word (需要先轉換)
-    // 這裡簡化處理，實際需要更複雜的轉換邏輯
-    const blob = new Blob([htmlContent], { type: 'application/msword' })
+    // 提取每一頁的文字和格式
+    for (let pageNum = 1; pageNum <= Math.min(numPages, 50); pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const textContent = await page.getTextContent()
+      
+      // 處理文字內容，保留格式信息
+      let currentParagraph = []
+      let lastY = null
+      
+      textContent.items.forEach((item, index) => {
+        if (item.str) {
+          // 檢查是否需要開始新段落（Y 座標變化較大）
+          if (lastY !== null && Math.abs(item.transform[5] - lastY) > 5) {
+            if (currentParagraph.length > 0) {
+              paragraphs.push(
+                new Paragraph({
+                  children: currentParagraph,
+                })
+              )
+              currentParagraph = []
+            }
+          }
+          
+          // 提取字體大小（從 transform 矩陣計算）
+          const fontSize = item.transform[0] || 12
+          const docxFontSize = Math.max(18, Math.min(72, Math.round(fontSize * 1.5)))
+          
+          // 檢查是否為粗體（從字體名稱判斷）
+          const fontName = item.fontName || ''
+          const isBold = fontName.toLowerCase().includes('bold') || fontName.toLowerCase().includes('black')
+          
+          // 創建文字運行，保留格式
+          currentParagraph.push(
+            new TextRun({
+              text: item.str,
+              size: docxFontSize,
+              bold: isBold,
+            })
+          )
+          
+          lastY = item.transform[5]
+        }
+      })
+      
+      // 添加最後一個段落
+      if (currentParagraph.length > 0) {
+        paragraphs.push(
+          new Paragraph({
+            children: currentParagraph,
+          })
+        )
+        hasContent = true
+      }
+      
+      // 如果不是最後一頁，添加分頁符
+      if (pageNum < Math.min(numPages, 50) && hasContent) {
+        paragraphs.push(new Paragraph({ text: '' }))
+      }
+    }
+    
+    // 如果沒有提取到任何文字，創建一個空文檔
+    if (!hasContent || paragraphs.length === 0) {
+      paragraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: ' ',
+              size: 22,
+            }),
+          ],
+        })
+      )
+    }
+    
+    // 創建 Word 文檔
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: paragraphs,
+        },
+      ],
+    })
+    
+    // 生成 DOCX 文件
+    const blob = await Packer.toBlob(doc)
     return blob
   } catch (error) {
     console.error('PDF 轉 Word 錯誤:', error)
@@ -67,19 +152,79 @@ export async function pdfToWord(pdfFile) {
   }
 }
 
-// PDF 轉 Excel
+// PDF 轉 Excel - 提取文字內容並組織成表格格式
 export async function pdfToExcel(pdfFile) {
   try {
     const arrayBuffer = await pdfFile.arrayBuffer()
-    const pdfDoc = await PDFDocument.load(arrayBuffer)
-    const pages = pdfDoc.getPages()
+    
+    // 使用 pdf.js 讀取 PDF
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
+    const numPages = Math.min(pdf.numPages, 50)
     
     // 創建工作簿
     const wb = XLSX.utils.book_new()
     
-    // 創建工作表數據
-    const data = [['PDF 內容'], [`頁數: ${pages.length}`], ['注意：此為簡化版本，實際轉換需要 OCR 技術']]
-    const ws = XLSX.utils.aoa_to_sheet(data)
+    // 提取每一頁的文字內容，嘗試組織成表格
+    const allData = []
+    
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const textContent = await page.getTextContent()
+      
+      // 按行組織文字（根據 Y 座標）
+      const rows = {}
+      
+      textContent.items.forEach((item) => {
+        if (item.str && item.str.trim()) {
+          const y = Math.round(item.transform[5])
+          if (!rows[y]) {
+            rows[y] = []
+          }
+          rows[y].push({
+            text: item.str,
+            x: item.transform[4],
+            fontSize: item.transform[0] || 12
+          })
+        }
+      })
+      
+      // 將行轉換為數組，按 Y 座標排序
+      const sortedRows = Object.keys(rows)
+        .sort((a, b) => parseFloat(b) - parseFloat(a)) // 從上到下
+        .map(y => {
+          // 按 X 座標排序同一行的文字
+          const sortedItems = rows[y].sort((a, b) => a.x - b.x)
+          return sortedItems.map(item => item.text).join(' ')
+        })
+      
+      // 添加到數據中
+      if (sortedRows.length > 0) {
+        allData.push([`--- 頁面 ${pageNum} ---`])
+        sortedRows.forEach(row => {
+          // 嘗試將行分割成多列（以空格或製表符分割）
+          const cells = row.split(/\s{2,}|\t/).filter(cell => cell.trim())
+          if (cells.length > 1) {
+            allData.push(cells)
+          } else {
+            allData.push([row])
+          }
+        })
+        allData.push([]) // 頁面間的空行
+      }
+    }
+    
+    // 如果沒有提取到數據，創建基本結構
+    if (allData.length === 0) {
+      allData.push(['PDF 內容'], [`總頁數: ${numPages}`], ['已提取文字內容'])
+    }
+    
+    // 創建工作表
+    const ws = XLSX.utils.aoa_to_sheet(allData)
+    
+    // 設置列寬
+    const maxCols = Math.max(...allData.map(row => row.length))
+    ws['!cols'] = Array(maxCols).fill({ wch: 20 })
     
     XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
     
@@ -92,32 +237,49 @@ export async function pdfToExcel(pdfFile) {
   }
 }
 
-// PDF 轉 PowerPoint
+// PDF 轉 PowerPoint - 將 PDF 頁面渲染為圖片後插入 PPT
 export async function pdfToPowerPoint(pdfFile) {
   try {
     const arrayBuffer = await pdfFile.arrayBuffer()
-    const pdfDoc = await PDFDocument.load(arrayBuffer)
-    const pages = pdfDoc.getPages()
+    
+    // 使用 pdf.js 讀取 PDF
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
+    const numPages = Math.min(pdf.numPages, 20) // 限制最多 20 頁
     
     const pptx = new PptxGenJS()
+    pptx.layout = 'LAYOUT_WIDE' // 使用寬屏佈局
     
-    // 為每一頁創建幻燈片
-    for (let i = 0; i < Math.min(pages.length, 10); i++) {
+    // 為每一頁創建幻燈片，將 PDF 頁面渲染為圖片
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const viewport = page.getViewport({ scale: 1.5 })
+      
+      // 創建 canvas 渲染 PDF 頁面
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      canvas.height = viewport.height
+      canvas.width = viewport.width
+      
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      }
+      
+      await page.render(renderContext).promise
+      
+      // 將 canvas 轉換為 base64 圖片
+      const imageData = canvas.toDataURL('image/png')
+      
+      // 創建幻燈片並添加圖片
       const slide = pptx.addSlide()
-      slide.addText(`PDF 頁面 ${i + 1}`, {
-        x: 1,
-        y: 1,
-        w: 8,
-        h: 1,
-        fontSize: 24,
-        bold: true
-      })
-      slide.addText(`總頁數: ${pages.length}`, {
-        x: 1,
-        y: 2,
-        w: 8,
-        h: 1,
-        fontSize: 18
+      slide.addImage({
+        data: imageData,
+        x: 0,
+        y: 0,
+        w: 10,
+        h: 7.5,
+        sizing: { type: 'contain', w: 10, h: 7.5 }
       })
     }
     
@@ -128,52 +290,42 @@ export async function pdfToPowerPoint(pdfFile) {
   }
 }
 
-// PDF 轉圖片 (JPG/PNG)
+// PDF 轉圖片 (JPG/PNG) - 使用 pdf.js 實際渲染 PDF 頁面
 export async function pdfToImage(pdfFile, format = 'png') {
   try {
     const arrayBuffer = await pdfFile.arrayBuffer()
-    const pdfDoc = await PDFDocument.load(arrayBuffer)
-    const pages = pdfDoc.getPages()
     
-    // 使用 canvas 渲染 PDF 頁面
-    // 注意：這需要 pdf.js 來實際渲染，這裡是簡化版本
-    const images = []
+    // 使用 pdf.js 讀取 PDF
+    const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer })
+    const pdf = await loadingTask.promise
     
-    // 實際應用中需要使用 pdf.js 的 render 功能
-    // 這裡返回一個包含頁面信息的占位符
-    for (let i = 0; i < pages.length; i++) {
-      // 創建一個簡單的 canvas 圖像
-      const canvas = document.createElement('canvas')
-      canvas.width = 800
-      canvas.height = 600
-      const ctx = canvas.getContext('2d')
-      
-      // 繪製背景和文字
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = '#333333'
-      ctx.font = '24px Arial'
-      ctx.textAlign = 'center'
-      ctx.fillText(`PDF 頁面 ${i + 1}`, canvas.width / 2, canvas.height / 2)
-      
-      canvas.toBlob((blob) => {
-        images.push(blob)
-      }, `image/${format}`, 0.9)
+    // 渲染第一頁為圖片
+    const page = await pdf.getPage(1)
+    const viewport = page.getViewport({ scale: 2.0 }) // 提高解析度以保留更多細節
+    
+    // 創建 canvas
+    const canvas = document.createElement('canvas')
+    const context = canvas.getContext('2d')
+    canvas.height = viewport.height
+    canvas.width = viewport.width
+    
+    // 渲染 PDF 頁面到 canvas
+    const renderContext = {
+      canvasContext: context,
+      viewport: viewport
     }
     
-    // 返回第一張圖片（簡化處理）
-    return new Promise((resolve) => {
-      const canvas = document.createElement('canvas')
-      canvas.width = 800
-      canvas.height = 600
-      const ctx = canvas.getContext('2d')
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = '#333333'
-      ctx.font = '24px Arial'
-      ctx.textAlign = 'center'
-      ctx.fillText('PDF 頁面 1', canvas.width / 2, canvas.height / 2)
-      canvas.toBlob((blob) => resolve(blob), `image/${format}`, 0.9)
+    await page.render(renderContext).promise
+    
+    // 轉換為 blob
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob)
+        } else {
+          reject(new Error('無法生成圖片'))
+        }
+      }, `image/${format}`, 0.95) // 高品質
     })
   } catch (error) {
     console.error('PDF 轉圖片錯誤:', error)
@@ -181,32 +333,48 @@ export async function pdfToImage(pdfFile, format = 'png') {
   }
 }
 
-// Word 轉 PDF
+// Word 轉 PDF - 保留原始格式
 export async function wordToPDF(wordFile) {
   try {
     const arrayBuffer = await wordFile.arrayBuffer()
     
-    // 使用 mammoth 將 Word 轉為 HTML
-    const result = await mammoth.convertToHtml({ arrayBuffer })
+    // 使用 mammoth 將 Word 轉為 HTML，保留樣式
+    const result = await mammoth.convertToHtml({ 
+      arrayBuffer,
+      styleMap: [
+        "p[style-name='Heading 1'] => h1:fresh",
+        "p[style-name='Heading 2'] => h2:fresh",
+        "p[style-name='Heading 3'] => h3:fresh",
+      ]
+    })
     const html = result.value
     
-    // 創建臨時 div 來渲染 HTML
+    // 創建臨時 div 來渲染 HTML，保留格式
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = html
     tempDiv.style.width = '210mm'
     tempDiv.style.padding = '20mm'
     tempDiv.style.fontFamily = 'Arial, sans-serif'
+    tempDiv.style.backgroundColor = '#ffffff'
+    tempDiv.style.color = '#000000'
+    // 保留原始樣式
+    tempDiv.style.boxSizing = 'border-box'
     document.body.appendChild(tempDiv)
     
-    // 使用 html2canvas 轉換為圖片，然後用 jsPDF 創建 PDF
+    // 使用 html2canvas 轉換為圖片，提高品質以保留格式
     const canvas = await html2canvas(tempDiv, {
-      scale: 2,
-      useCORS: true
+      scale: 2.5, // 提高解析度
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      removeContainer: false,
+      allowTaint: true,
+      imageTimeout: 15000
     })
     
     document.body.removeChild(tempDiv)
     
-    const imgData = canvas.toDataURL('image/png')
+    const imgData = canvas.toDataURL('image/png', 0.95)
     const pdf = new jsPDF('p', 'mm', 'a4')
     const imgWidth = 210
     const pageHeight = 297
@@ -231,35 +399,67 @@ export async function wordToPDF(wordFile) {
   }
 }
 
-// Excel 轉 PDF
+// Excel 轉 PDF - 保留原始格式和表格結構
 export async function excelToPDF(excelFile) {
   try {
     const arrayBuffer = await excelFile.arrayBuffer()
-    const workbook = XLSX.read(arrayBuffer, { type: 'array' })
+    const workbook = XLSX.read(arrayBuffer, { type: 'array', cellStyles: true })
     
     // 獲取第一個工作表
     const firstSheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[firstSheetName]
     
-    // 轉換為 HTML 表格
-    const html = XLSX.utils.sheet_to_html(worksheet)
+    // 轉換為 HTML 表格，保留樣式
+    const html = XLSX.utils.sheet_to_html(worksheet, {
+      id: 'excel-table',
+      editable: false
+    })
     
-    // 創建臨時 div
+    // 創建臨時 div，保留表格格式
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = html
-    tempDiv.style.width = '210mm'
-    tempDiv.style.padding = '20mm'
+    tempDiv.style.width = '297mm' // 橫向 A4
+    tempDiv.style.padding = '10mm'
+    tempDiv.style.backgroundColor = '#ffffff'
+    // 確保表格樣式保留
+    const table = tempDiv.querySelector('table')
+    if (table) {
+      table.style.borderCollapse = 'collapse'
+      table.style.width = '100%'
+      table.style.fontSize = '12px'
+    }
     document.body.appendChild(tempDiv)
     
-    // 轉換為 PDF
-    const canvas = await html2canvas(tempDiv, { scale: 2 })
+    // 轉換為 PDF，提高解析度以保留格式
+    const canvas = await html2canvas(tempDiv, { 
+      scale: 2.5, // 提高解析度
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff',
+      allowTaint: true,
+      imageTimeout: 15000
+    })
     document.body.removeChild(tempDiv)
     
-    const imgData = canvas.toDataURL('image/png')
+    const imgData = canvas.toDataURL('image/png', 0.95)
     const pdf = new jsPDF('l', 'mm', 'a4') // 橫向
     const imgWidth = 297
     const imgHeight = (canvas.height * imgWidth) / canvas.width
-    pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight)
+    const pageHeight = 210
+    
+    // 處理多頁情況
+    let heightLeft = imgHeight
+    let position = 0
+    
+    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+    
+    while (heightLeft >= 0) {
+      position = heightLeft - imgHeight
+      pdf.addPage('l', 'a4')
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
     
     return pdf.output('blob')
   } catch (error) {

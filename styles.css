@@ -419,8 +419,8 @@ body {
 .footer {
     background-color: #2c3e50;
     color: #ecf0f1;
-    padding: 60px 0 30px;
-    margin-top: 80px;
+    padding: 20px 0;
+    margin-top: 0;
 }
 
 .footer-content {
@@ -460,8 +460,8 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding-top: 30px;
-    border-top: 1px solid #34495e;
+    padding-top: 0;
+    border-top: none;
     flex-wrap: wrap;
     gap: 20px;
 }

@@ -193,7 +193,15 @@ function UploadArea() {
             </svg>
           </div>
           <div className="upload-button-wrapper">
-            <button className="btn-select-file" onClick={(e) => e.stopPropagation()}>
+            <button 
+              className="btn-select-file" 
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!isProcessing && !showOptions && fileInputRef.current) {
+                  fileInputRef.current.click()
+                }
+              }}
+            >
               + 選取檔案
               <span className="dropdown-arrow">▼</span>
             </button>
